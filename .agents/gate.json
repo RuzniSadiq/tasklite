@@ -1,0 +1,7 @@
+{
+  "generate": "",
+  "typecheck": "uv run mypy --strict src",
+  "lint": "uv run ruff check .",
+  "test": "uv run pytest -q",
+  "build": "uv build"
+}

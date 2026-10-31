@@ -1,0 +1,8 @@
+{
+  "repo": "RuzniSadiq/tasklite",
+  "model": "main-is-prod",
+  "defaultBranch": "main",
+  "productionBranch": "main",
+  "requiredContexts": ["gate"],
+  "productionEnvironment": null
+}
