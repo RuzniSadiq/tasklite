@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -39,9 +40,18 @@ def save(tasks: list[Task]) -> None:
     db_path().write_text(json.dumps(tasks, indent=2))
 
 
+_DUE_SHAPE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
 def parse_due(value: str) -> date:
-    """argparse type for --due: a strict YYYY-MM-DD calendar date."""
+    """argparse type for --due: a strict YYYY-MM-DD calendar date.
+
+    The shape is checked before date.fromisoformat because on Python 3.11+
+    fromisoformat also accepts basic (20261105) and week (2026-W45-4) forms.
+    """
     try:
+        if not _DUE_SHAPE.fullmatch(value):
+            raise ValueError(value)
         return date.fromisoformat(value)
     except ValueError:
         raise argparse.ArgumentTypeError(
