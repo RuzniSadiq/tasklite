@@ -41,12 +41,21 @@ Pure memory-only commits are exempt (see Shared agent memory above).
    `- Active-work claim: issue-N-short-name` in an open PR body
    (for example `- Active-work claim: issue-2-due-dates`) and add the
    `agent-claimed` label. Overlapping claim ⇒ stop and coordinate, never race.
-3. **Never review or approve your own work.** An independent reviewer — ideally
-   a different model — inspects the exact committed head, read-only.
+3. **Never review or approve your own work.** An independent reviewer — a
+   model from a different vendor than the author — inspects the exact committed
+   head, read-only, and its verdict (`VERDICT: APPROVE` / `REQUEST_CHANGES`,
+   naming the full head SHA) is posted on the PR. A new commit voids it.
+   Required GitHub approvals stay at 0 until a dedicated reviewer identity
+   exists (a solo owner cannot approve their own PRs); the posted verdict is the
+   review of record until then.
 4. **Acceptance criteria are the contract**, verified by a sensor (test, script,
    check), never by assertion.
 5. **Report failures verbatim.** Never mark done what you did not verify.
 6. **Clean up:** remove the worktree, delete the branch, release the claim.
+7. **Stop on the kill switch.** Any of these means stop all autonomous work at
+   once, before the next mutation: an open issue labelled `gibson-halt` (or
+   `halt`), a `.gibson-halt` file on `main`, or a local `gibson/HALT` file.
+   Only a human removes them.
 
 ### Hot files (single claimant, own PR)
 | File | Rule |
@@ -54,6 +63,8 @@ Pure memory-only commits are exempt (see Shared agent memory above).
 | pyproject.toml | no casual deps; own commit |
 | uv.lock | never hand-edit — run `uv lock` (or `uv add` / `uv remove`); commit it together with pyproject.toml |
 | MEMORY.md | append-only lessons; pure updates skip CI |
+| scripts/test-integrity.mjs, scripts/check-active-work.mjs | vendored CI sensors — never hand-edit; re-vendor byte-for-byte from the harness and name the source revision |
+| tests/conftest.py | prints the `GIBSON_TEST_METRICS` line the test-count ratchet grades — changes are Tier C |
 
 ### Framework warnings
 - Use uv for everything: `uv run …`, `uv add …`. Never `pip install` into the project.
@@ -68,8 +79,9 @@ Pure memory-only commits are exempt (see Shared agent memory above).
 - Auth and authorization boundaries: none in this repo.
 - PII / consent: the user's task file (`~/.tasklite.json`, or `TASKLITE_DB`).
   Tests must always point `TASKLITE_DB` at a temp path, never the real file.
-- Security boundaries: `.agents/gate.json` and `.github/workflows/` — changing
-  them can weaken the checks themselves.
+- Security boundaries: `.agents/gate.json`, `.github/workflows/`,
+  `.gibson-delivery.json`, the vendored sensors in `scripts/`, and
+  `tests/conftest.py` — changing them can weaken the checks themselves.
 - Destructive or irreversible data and schema operations: any change to the
   stored task format (the `Task` fields in `src/tasklite.py`) other than adding
   an optional field; anything that deletes or rewrites existing task files.
@@ -82,4 +94,10 @@ Pure memory-only commits are exempt (see Shared agent memory above).
 - Commit messages and PR titles start with the change type:
   `feat(#N):`, `fix(#N):`, `refactor(#N):`, `docs(#N):`, `test(#N):`, `chore(#N):`.
 - Every PR has `Closes #N` and one tier label (`tier-a`, `tier-b`, `tier-c`).
-- Agents never merge their own PR; `tier-c` PRs need human approval to merge.
+- Squash merge only; the `Signed-off-by` trailers must survive the squash.
+- Merging (decided by the owner 2026-10-31):
+  - `tier-a`: an agent may merge once every required check is green at the
+    head, the independent reviewer posted `VERDICT: APPROVE` for that exact head
+    SHA, and every acceptance criterion is sensor-verified on the PR.
+  - `tier-b` and `tier-c`: a human merges.
+  - A diff that drifts into a higher tier takes that tier's rule.

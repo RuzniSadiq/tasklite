@@ -3,6 +3,11 @@
   "model": "main-is-prod",
   "defaultBranch": "main",
   "productionBranch": "main",
-  "requiredContexts": ["gate"],
+  "requiredContexts": [
+    "gate",
+    "security-fast",
+    "dco",
+    "test-integrity"
+  ],
   "productionEnvironment": null
 }
