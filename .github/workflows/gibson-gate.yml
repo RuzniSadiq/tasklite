@@ -1,4 +1,4 @@
-# gibson-template-version: sha256:e74d11416f63ef13d7eab8b313197dee066382996b261ce89a05adf3692bdb63
+# gibson-template-version: sha256:e52bcef640a69ca914a38c309b0cd7085a1d177ddfd8da53560a563828477b8b
 # The Gibson — green gate + protected test-integrity CI (template)
 # CALIBRATED for tasklite (uv / Python) from the-gibson@babef4b ci/gibson-gate.yml
 # (template-version sha256:75c85188e1d20730acc929675d18d1affb3024f6dffda17014aba7c065f27f31, issue #11). Changes vs. template:
@@ -67,12 +67,27 @@ jobs:
           echo "::add-mask::${auth}"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
             fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+      # Calibration, tightened vs. template (#11 review): claim isolation runs
+      # BEFORE dependency install (uv sync may execute the PR's build backend)
+      # and grades with the base branch's copy of the sensor, not the PR's.
+      - name: Claim isolation (trusted base copy)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          sensor="$RUNNER_TEMP/check-active-work.mjs"
+          trusted="refs/remotes/origin/${BASE_REF}:scripts/check-active-work.mjs"
+          if git cat-file -e "$trusted" 2>/dev/null; then
+            git show "$trusted" > "$sensor"
+          else
+            echo "::warning::bootstrap: base has no scripts/check-active-work.mjs yet; grading with this PR's copy (only until the install PR merges)"
+            cp scripts/check-active-work.mjs "$sensor"
+          fi
+          node "$sensor"
+
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - name: Install dependencies
         run: uv sync --locked
-
-      - name: Claim isolation
-        run: node scripts/check-active-work.mjs
 
       # generate: "" in .agents/gate.json (not applicable)
       - run: uv run mypy --strict src
