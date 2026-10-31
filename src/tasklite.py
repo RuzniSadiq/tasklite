@@ -83,12 +83,27 @@ def done(task_id: int) -> Task:
     raise KeyError(task_id)
 
 
+def _stored_due(value: object) -> date | None:
+    """Parse a due value read from the task file, or None if it is unparseable.
+
+    The CLI only ever writes YYYY-MM-DD, but the file is user-editable, so a
+    hand-edited value ("soon", 5, ...) must not crash `list`.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def format_task(t: Task, today: date) -> str:
     line = f"[{'x' if t['done'] else ' '}] {t['id']}. {t['title']}"
     due = t.get("due")
     if due is not None:
         line += f" (due {due})"
-        if not t["done"] and date.fromisoformat(due) < today:
+        parsed = _stored_due(due)
+        if not t["done"] and parsed is not None and parsed < today:
             line += " [OVERDUE]"
     return line
 

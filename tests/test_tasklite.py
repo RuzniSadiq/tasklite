@@ -116,6 +116,40 @@ def test_issue5_valid_yyyy_mm_dd_still_accepted(capsys):
     assert _db() == [{"id": 1, "title": "x", "done": False, "due": "2026-11-05"}]
 
 
+# --- issue #6: hand-edited unparseable due values ---------------------------
+
+
+@pytest.mark.parametrize("bad", ["soon", "", "2026-13-01", "2000-02-30", 5, ["2000-01-01"]])
+def test_issue6_list_tolerates_unparseable_due(capsys, bad):
+    # AC1 + AC2 + AC4: no exception, exit 0, raw value shown, no [OVERDUE]
+    Path(os.environ["TASKLITE_DB"]).write_text(
+        json.dumps([{"id": 1, "title": "x", "done": False, "due": bad}])
+    )
+    assert tasklite.main(["list"]) == 0
+    assert capsys.readouterr().out.splitlines() == [f"[ ] 1. x (due {bad})"]
+
+
+def test_issue6_valid_due_unaffected_next_to_unparseable(capsys):
+    # AC3: valid due dates and overdue marking still work alongside a bad value
+    Path(os.environ["TASKLITE_DB"]).write_text(
+        json.dumps(
+            [
+                {"id": 1, "title": "bad", "done": False, "due": "soon"},
+                {"id": 2, "title": "past", "done": False, "due": "2000-01-01"},
+                {"id": 3, "title": "future", "done": False, "due": "2999-01-01"},
+                {"id": 4, "title": "bad done", "done": True, "due": "soon"},
+            ]
+        )
+    )
+    assert tasklite.main(["list"]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "[ ] 1. bad (due soon)",
+        "[ ] 2. past (due 2000-01-01) [OVERDUE]",
+        "[ ] 3. future (due 2999-01-01)",
+        "[x] 4. bad done (due soon)",
+    ]
+
+
 def test_ac4_legacy_tasks_without_due_load_and_list(capsys):
     Path(os.environ["TASKLITE_DB"]).write_text(
         json.dumps(
