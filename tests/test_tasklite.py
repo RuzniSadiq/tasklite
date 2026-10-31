@@ -87,6 +87,35 @@ def test_ac3_invalid_due_exits_2_with_clear_error(capsys, bad):
     assert not Path(os.environ["TASKLITE_DB"]).exists()
 
 
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "20261105",  # issue #5 AC1: ISO basic form, accepted by fromisoformat on 3.11+
+        "2026-W45-4",  # issue #5 AC2: ISO week form, accepted by fromisoformat on 3.11+
+        "2026W454",  # compact week form
+        "2026-1-05",  # unpadded month
+        " 2026-11-05",  # surrounding whitespace
+        "2026-11-05\n",  # trailing newline
+        "２０２６-１１-０５",  # non-ASCII digits
+    ],
+)
+def test_issue5_non_yyyy_mm_dd_iso_forms_rejected(capsys, bad):
+    with pytest.raises(SystemExit) as exc:
+        tasklite.main(["add", "x", "--due", bad])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "--due" in err and "invalid date" in err and "YYYY-MM-DD" in err
+    assert not Path(os.environ["TASKLITE_DB"]).exists()
+
+
+def test_issue5_valid_yyyy_mm_dd_still_accepted(capsys):
+    # issue #5 AC3
+    assert tasklite.parse_due("2026-11-05") == date(2026, 11, 5)
+    assert tasklite.main(["add", "x", "--due", "2026-11-05"]) == 0
+    assert "Added #1: x (due 2026-11-05)" in capsys.readouterr().out
+    assert _db() == [{"id": 1, "title": "x", "done": False, "due": "2026-11-05"}]
+
+
 def test_ac4_legacy_tasks_without_due_load_and_list(capsys):
     Path(os.environ["TASKLITE_DB"]).write_text(
         json.dumps(
