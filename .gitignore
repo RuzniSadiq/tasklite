@@ -1,5 +1,7 @@
 .venv/
 dist/
 __pycache__/
-*.json
-!.agents/*.json
+tasklite.json
+.gibson-baseline.json
+.gibson-receipts/
+gibson/
